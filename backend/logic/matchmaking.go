@@ -33,6 +33,6 @@ func Matchmaking(p *models.Player) {
 		p2.Conn.WriteJSON(models.GameMessage{Status: "start", GameID: gameID, Color: "white"})
 		p.Conn.WriteJSON(models.GameMessage{Status: "start", GameID: gameID, Color: "black"})
 
-		go HandleGame(p, p2, gameID)
+		go HandleGame(p2, p, gameID)
 	}
 }

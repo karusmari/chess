@@ -1,7 +1,35 @@
 import 'package:flutter/material.dart';
+import '../services/websocket_service.dart';
+import 'game_screen.dart'; // Lisa see import, et Navigator teaks kuhu minna
 
-class WaitingScreen extends StatelessWidget {
+class WaitingScreen extends StatefulWidget {
   const WaitingScreen({super.key});
+
+  @override
+  State<WaitingScreen> createState() => _WaitingScreenState();
+}
+
+class _WaitingScreenState extends State<WaitingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // KUULAME SERVERIT: Kui keegi teine liitub, saadetakse "start"
+    socketService.stream.listen((data) {
+      print("WaitingScreen received data: $data");
+      if (data['status'] == 'start' && mounted) {
+        // Liigume mängu ekraanile ja eemaldame oote-ekraani ajaloost
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => GameScreen(
+              gameId: data['game_id'],
+              playerColor: data['color'],
+            ),
+          ),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,16 +62,6 @@ class WaitingScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
                 letterSpacing: 2.0,
                 color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 10),
-            
-            Text(
-              "Your unique session is being created",
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[400],
-                fontStyle: FontStyle.italic,
               ),
             ),
             
