@@ -59,59 +59,74 @@ class _GameScreenState extends State<GameScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Arvutame optimaalse suuruse
             double boardSize = constraints.maxWidth < constraints.maxHeight 
-                ? constraints.maxWidth * 0.95 // Portreevaates peaaegu täislaius
-                : constraints.maxHeight * 0.7; // Maastikuvaates jääb ruumi tekstile
+                ? constraints.maxWidth * 0.95 
+                : constraints.maxHeight * 0.7;
 
-            return Center( // Hoiame kogu sisu ekraani keskel
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "You are: ${widget.playerColor.toUpperCase()}",
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // MALELAUD
-                  SizedBox(
-                    width: boardSize,
-                    height: boardSize,              
-                    child: ChessBoard(
-                      controller: _controller,
-                      boardColor: BoardColor.darkBrown,
-                      boardOrientation: widget.playerColor == "white" 
-                          ? PlayerColor.white 
-                          : PlayerColor.black,
-                      onMove: () {
-                        String newFen = _controller.getFen();
-                        socketService.sendMove(newFen);
-                        print("Sent the move!");
-                      },
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 20),
-                  ValueListenableBuilder<Chess>(
-                    valueListenable: _controller,
-                    builder: (context, game, _) {
-                      String turn = game.turn == Color.WHITE ? "WHITE" : "BLACK";
-                      return Container(
-                        padding: const EdgeInsets.all(10),
+            // Kasutame ValueListenableBuilderit, et kuulata mängu seisu muutusi
+            return ValueListenableBuilder<Chess>(
+              valueListenable: _controller,
+              builder: (context, game, _) {
+                // KONTROLL: Kas on praeguse mängija kord?
+                // game.turn väärtus on Color.WHITE või Color.BLACK
+                bool isWhiteTurn = game.turn == Color.WHITE;
+                bool isMyTurn = (widget.playerColor == "white" && isWhiteTurn) ||
+                                (widget.playerColor == "black" && !isWhiteTurn);
+
+                String turnText = isWhiteTurn ? "WHITE" : "BLACK";
+
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "You are: ${widget.playerColor.toUpperCase()}",
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // MALELAUD
+                      SizedBox(
+                        width: boardSize,
+                        height: boardSize,              
+                        child: ChessBoard(
+                          controller: _controller,
+                          // LUKUSTAME LAUA: Lubame käike ainult siis, kui on mängija kord
+                          enableUserMoves: isMyTurn, 
+                          boardColor: BoardColor.darkBrown,
+                          boardOrientation: widget.playerColor == "white" 
+                              ? PlayerColor.white 
+                              : PlayerColor.black,
+                          onMove: () {
+                            String newFen = _controller.getFen();
+                            socketService.sendMove(newFen);
+                            print("Sent the move!");
+                          },
+                        ),
+                      ),
+                      
+                      const SizedBox(height: 20),
+                      Container(
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.brown.withOpacity(0.1),
+                          // Muudame värvi vastavalt sellele, kas on sinu kord
+                          color: isMyTurn ? Colors.green.withOpacity(0.1) : Colors.brown.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(10),
+                          border: isMyTurn ? Border.all(color: Colors.green, width: 2) : null,
                         ),
                         child: Text(
-                          "It's $turn's turn", 
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)
+                          isMyTurn ? "YOUR TURN ($turnText)" : "WAITING FOR OPPONENT ($turnText)", 
+                          style: TextStyle(
+                            fontSize: 18, 
+                            fontWeight: FontWeight.bold,
+                            color: isMyTurn ? Colors.green[700] : Colors.black87,
+                          )
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         ),
