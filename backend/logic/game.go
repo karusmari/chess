@@ -5,18 +5,24 @@ import (
 	"fmt"
 )
 
-func HandleGame(p1, p2 *models.Player, gameID string) {
-	fmt.Printf("Game %s is now active between %s and %s\n", gameID, p1.ID, p2.ID)
+func HandleGame(p1, p2 *models.Player, game *models.Game) {
+	fmt.Printf("Game %s is now active between %s and %s\n", game.ID, p1.ID, p2.ID)
 	// Kanal, mille kaudu mängijad sõnumeid saadavad
 	// Lisame siia juurde info, mis värvi keegi on
-	go relayMoves(p1, p2, "white", gameID) // p1 on valge (esimene ootaja)
-	go relayMoves(p2, p1, "black", gameID) // p2 on must
+	go relayMoves(p1, p2, "white", game) // p1 on valge (esimene ootaja)
+	go relayMoves(p2, p1, "black", game) // p2 on must
 }
 // currentTurn on globaalne või mängupõhine. 
 // Lihtsuse mõttes teeme siia muutuja (NB! Päris süsteemis peaks see olema Game struktuuri sees)
-var currentTurn = "white"
 
-func relayMoves(from, to *models.Player, playerColor string, gameID string) {
+func relayMoves(from, to *models.Player, playerColor string, game *models.Game) {
+	defer func() {
+        // Kui üks lahkub, kustutame mängu kaardist
+        Mu.Lock()
+        delete(ActiveGames, game.ID)
+        Mu.Unlock()
+        to.Conn.WriteJSON(map[string]string{"status": "opponent_left"})
+    }()
 	for {
 		var msg map[string]interface{}
 		err := from.Conn.ReadJSON(&msg)
@@ -24,19 +30,20 @@ func relayMoves(from, to *models.Player, playerColor string, gameID string) {
 			break
 		}
 
-		// KONTROLL: Kas on selle mängija kord?
 		if msg["type"] == "move" {
-			if playerColor != currentTurn {
-				fmt.Printf("[%s] Wrong turn! %s tried to move, but it's %s's turn.\n", gameID, playerColor, currentTurn)
-				continue // Jätame selle sõnumi vahele, ei saada vastasele
+			Mu.Lock()
+			if playerColor != game.CurrentTurn {
+				fmt.Printf("[%s] Wrong turn! %s tried to move, but it's %s's turn.\n", game.ID, playerColor, game.CurrentTurn)
+				continue 
 			}
 
 			// Kui oli õige kord, vahetame korra ära
-			if currentTurn == "white" {
-				currentTurn = "black"
+			if game.CurrentTurn == "white" {
+				game.CurrentTurn = "black"
 			} else {
-				currentTurn = "white"
+				game.CurrentTurn = "white"
 			}
+			Mu.Unlock()
 		}
 
 		// Saadame sõnumi edasi vastasele

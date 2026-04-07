@@ -10,6 +10,7 @@ import (
 var (
 	WaitingPlayer *models.Player
 	Mu            sync.Mutex
+	ActiveGames = make(map[string]*models.Game) // holding active games, key is game ID
 )
 
 func Matchmaking(p *models.Player) {
@@ -25,14 +26,24 @@ func Matchmaking(p *models.Player) {
 	} else {
 		p2 := WaitingPlayer
 		WaitingPlayer = nil
-		Mu.Unlock()
 
 		gameID := uuid.New().String()
+		
+		
+		newGame := &models.Game{
+			ID:          gameID,
+			WhitePlayer: p2,
+			BlackPlayer: p,
+			CurrentTurn: "white",
+		}
+		ActiveGames[gameID] = newGame // saving the game to active games map
+		Mu.Unlock()
+
 		fmt.Printf("Game created! ID: %s\n", gameID)
 
 		p2.Conn.WriteJSON(models.GameMessage{Status: "start", GameID: gameID, Color: "white"})
 		p.Conn.WriteJSON(models.GameMessage{Status: "start", GameID: gameID, Color: "black"})
 
-		go HandleGame(p2, p, gameID)
+		go HandleGame(p2, p, newGame)
 	}
 }

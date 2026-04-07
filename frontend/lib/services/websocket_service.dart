@@ -15,7 +15,7 @@ class WebSocketService {
     _channel?.sink.close(); // Sulgeme vana ühenduse, kui see olemas on
 
     // Chrome'i jaoks localhost, emulaatori jaoks 10.0.2.2
-    final uri = Uri.parse('ws://localhost:8080/ws');
+    final uri = Uri.parse('ws://localhost:8080/ws'); // IP 192.168.1.73
     print("Connecting to $uri...");
 
     try {
