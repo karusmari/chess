@@ -11,6 +11,7 @@ var (
 	WaitingPlayer *models.Player
 	Mu            sync.Mutex
 	ActiveGames = make(map[string]*models.Game) // holding active games, key is game ID
+	PrivateRooms = make(map[string]*models.Player) // holding private rooms, key is room ID
 )
 
 func Matchmaking(p *models.Player) {
@@ -46,4 +47,47 @@ func Matchmaking(p *models.Player) {
 
 		go HandleGame(p2, p, newGame)
 	}
+}
+
+// CreatePrivate ootab sõpra konkreetse koodiga
+func CreatePrivate(p *models.Player, roomID string) {
+	Mu.Lock()
+	PrivateRooms[roomID] = p
+	Mu.Unlock()
+	
+	p.Conn.WriteJSON(models.GameMessage{
+		Status:  "waiting",
+		Message: "Kutsu sõber koodiga: " + roomID,
+	})
+}
+
+// JoinPrivate kontrollib, kas selline kood on ootel
+func JoinPrivate(p *models.Player, roomID string) {
+	Mu.Lock()
+	host, exists := PrivateRooms[roomID]
+	
+	if !exists {
+		Mu.Unlock()
+		p.Conn.WriteJSON(models.GameMessage{Status: "error", Message: "Tuba ei leitud!"})
+		return
+	}
+
+	// Kui leiti, kustutame ooteruumist ja loome mängu
+	delete(PrivateRooms, roomID)
+	
+	gameID := uuid.New().String()
+	newGame := &models.Game{
+		ID:          gameID,
+		WhitePlayer: host, // Kutsuja on valge
+		BlackPlayer: p,    // Liituja on must
+		CurrentTurn: "white",
+	}
+	ActiveGames[gameID] = newGame // SALVESTAME AKTIIVSETE MÄNGUDE ALLA
+	Mu.Unlock()
+
+	// Saadame mõlemale start-sõnumi
+	host.Conn.WriteJSON(models.GameMessage{Status: "start", GameID: gameID, Color: "white"})
+	p.Conn.WriteJSON(models.GameMessage{Status: "start", GameID: gameID, Color: "black"})
+
+	go HandleGame(host, p, newGame)
 }
