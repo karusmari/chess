@@ -1,34 +1,94 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:flutter/services.dart';
 import '../services/websocket_service.dart';
 import 'game_screen.dart'; // Lisa see import, et Navigator teaks kuhu minna
 
 class WaitingScreen extends StatefulWidget {
-  const WaitingScreen({super.key});
+  final String? initialPlayerId;
+  final String? initialRoomCode;
+
+  const WaitingScreen({super.key, this.initialPlayerId, this.initialRoomCode});
 
   @override
   State<WaitingScreen> createState() => _WaitingScreenState();
 }
 
 class _WaitingScreenState extends State<WaitingScreen> {
+  StreamSubscription<Map<String, dynamic>>? _socketSubscription;
+  String? _waitingPlayerId;
+  String? _roomCode;
+
+  void _showAccentSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color.fromARGB(255, 222, 220, 210),
+        content: Text(
+          message,
+          style: const TextStyle(
+            color: Color.fromARGB(255, 49, 47, 43),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    _waitingPlayerId = widget.initialPlayerId;
+    _roomCode = widget.initialRoomCode;
     // KUULAME SERVERIT: Kui keegi teine liitub, saadetakse "start"
-    socketService.stream.listen((data) {
+    _socketSubscription = socketService.stream.listen((data) {
       print("WaitingScreen received data: $data");
+      if (data['status'] == 'waiting' && data['your_id'] is String) {
+        _waitingPlayerId = data['your_id'] as String;
+      }
+      if (data['status'] == 'waiting' && data['room_id'] is String) {
+        _roomCode = data['room_id'] as String;
+      }
+      if (data['status'] == 'error' && mounted) {
+        final errorMessage =
+            data['message']?.toString() ?? 'Something went wrong.';
+        _showAccentSnackBar(errorMessage);
+        _socketSubscription?.cancel();
+        socketService.disconnect();
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        return;
+      }
       if (data['status'] == 'start' && mounted) {
+        socketService.sendReady();
         // Liigume mängu ekraanile ja eemaldame oote-ekraani ajaloost
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => GameScreen(
-              gameId: data['game_id'],
-              playerColor: data['color'],
-            ),
+            builder: (context) =>
+                GameScreen(gameId: data['game_id'], playerColor: data['color']),
           ),
         );
       }
     });
+  }
+
+  Future<void> _cancelWaiting() async {
+    if (_roomCode != null) {
+      await socketService.cancelPrivateRoomById(_roomCode!);
+    } else if (_waitingPlayerId != null) {
+      await socketService.cancelWaitingById(_waitingPlayerId!);
+    }
+    await _socketSubscription?.cancel();
+    await socketService.disconnect();
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  @override
+  void dispose() {
+    _socketSubscription?.cancel();
+    super.dispose();
   }
 
   @override
@@ -53,7 +113,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
               strokeWidth: 6,
             ),
             const SizedBox(height: 40),
-            
+
             // Tekst kasutajale
             const Text(
               "Waiting...",
@@ -64,16 +124,88 @@ class _WaitingScreenState extends State<WaitingScreen> {
                 color: Colors.white,
               ),
             ),
-            
+
             const SizedBox(height: 50),
-            
-            // Väike "Abimees" tekst
+
+            if (_roomCode != null) ...[
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      "Room Code",
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _roomCode!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton.icon(
+                      onPressed: () async {
+                        await Clipboard.setData(
+                          ClipboardData(text: _roomCode!),
+                        );
+                        if (!mounted) return;
+                        _showAccentSnackBar('Room code copied');
+                      },
+                      icon: const Icon(Icons.copy, color: Colors.white70),
+                      label: const Text(
+                        "Copy code",
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+            ],
+
+            // Tekst kasutajale sõltuvalt mängu tüübist
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Text(
-                "The game will start as soon as we find an opponent. Please wait patiently and get ready to play some chess!",
+                _roomCode != null
+                    ? "You have started a private game. Share this code with your opponent so you can play together."
+                    : "The game will start as soon as we find an opponent. Please wait patiently and get ready to play some chess!",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton.icon(
+              onPressed: _cancelWaiting,
+              icon: const Icon(Icons.close),
+              label: const Text("Cancel"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 222, 220, 210),
+                foregroundColor: const Color.fromARGB(255, 49, 47, 43),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
             ),
           ],

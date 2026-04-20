@@ -57,6 +57,57 @@ class WebSocketService {
     }
   }
 
+  void sendReady() {
+    _sendData({"type": "ready"});
+  }
+
+  Future<void> cancelWaitingById(String playerId) async {
+    if (playerId.isEmpty) return;
+
+    final url = const String.fromEnvironment(
+      'WEBSOCKET_URL',
+      defaultValue: _defaultWebSocketUrl,
+    );
+
+    try {
+      final tempChannel = WebSocketChannel.connect(Uri.parse(url));
+      await tempChannel.ready;
+      tempChannel.sink.add(
+        jsonEncode({"action": "cancel_waiting", "player_id": playerId}),
+      );
+      await tempChannel.sink.close();
+    } catch (e) {
+      print("Cancel waiting request failed: $e");
+    }
+  }
+
+  Future<void> cancelPrivateRoomById(String roomId) async {
+    if (roomId.isEmpty) return;
+
+    final url = const String.fromEnvironment(
+      'WEBSOCKET_URL',
+      defaultValue: _defaultWebSocketUrl,
+    );
+
+    try {
+      final tempChannel = WebSocketChannel.connect(Uri.parse(url));
+      await tempChannel.ready;
+      tempChannel.sink.add(
+        jsonEncode({"action": "cancel_waiting", "room_id": roomId}),
+      );
+      await tempChannel.sink.close();
+    } catch (e) {
+      print("Cancel private room request failed: $e");
+    }
+  }
+
+  Future<void> disconnect() async {
+    if (_channel != null) {
+      await _channel!.sink.close();
+      _channel = null;
+    }
+  }
+
   void dispose() {
     _channel?.sink.close();
     _controller.close();

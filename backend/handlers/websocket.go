@@ -3,10 +3,11 @@ package handlers
 import (
 	"backend/logic"
 	"backend/models"
+	"fmt"
 	"net/http"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"fmt"
 )
 
 var upgrader = websocket.Upgrader{
@@ -35,12 +36,25 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 
 	action := initMsg["action"]
 	roomID := initMsg["room_id"] // could be empty for "join_public"
+	playerID := initMsg["player_id"]
 
 	fmt.Printf("Player %s connected with action: %s, room_id: %s\n", player.ID, action, roomID)
 
 	switch action {
 	case "join_public":
 		logic.Matchmaking(player)
+	case "cancel_waiting":
+		if roomID != "" {
+			logic.CancelPrivateRoomByID(roomID)
+			player.Conn.WriteJSON(map[string]string{"status": "cancelled"})
+			return
+		}
+		if playerID == "" {
+			playerID = player.ID
+		}
+		logic.CancelWaitingByID(playerID)
+		player.Conn.WriteJSON(map[string]string{"status": "cancelled"})
+		return
 	case "create_private":
 		if roomID == "" {
 			player.Conn.WriteJSON(map[string]string{"status": "error", "message": "room_id is required for create_private"})

@@ -19,21 +19,25 @@ class _MenuScreenState extends State<MenuScreen> {
   void initState() {
     super.initState();
 
-    // HAKKAME KUULAMA SERVERIT JUBA SIIN!
     socketService.stream.listen((data) {
-      if (!mounted) return; // Kontrollime, et ekraan on veel olemas
+      if (!mounted) return;
 
       if (data['status'] == 'waiting') {
-        // Kui server ütleb "waiting", liigume ooteruumi ekraanile
-        if (mounted) {
+        if (data['room_id'] == null && mounted) {
+          final waitingPlayerId = data['your_id'] is String
+              ? data['your_id'] as String
+              : null;
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const WaitingScreen()),
+            MaterialPageRoute(
+              builder: (context) =>
+                  WaitingScreen(initialPlayerId: waitingPlayerId),
+            ),
           );
         }
       } else if (data['status'] == 'start') {
-        // Kui server ütleb "start", liigume mängu ekraanile
         if (mounted) {
+          socketService.sendReady();
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -44,11 +48,6 @@ class _MenuScreenState extends State<MenuScreen> {
             ),
           );
         }
-      } else if (data['status'] == 'error') {
-        // Näitame veateadet, kui midagi läks valesti
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: ${data['message']}")));
       }
     });
   }
@@ -66,9 +65,7 @@ class _MenuScreenState extends State<MenuScreen> {
     super.dispose();
   }
 
-  // Funktsioon ühendamiseks ja tegevuse saatmiseks
-  Future<void> _handleAction(Function action) async {
-    // 1. Veendu, et WebSocket on elus
+  Future<void> _handleAction(Function action, {String? roomCode}) async {
     final connected = await socketService.connect();
     if (!connected) {
       if (mounted) {
@@ -81,15 +78,15 @@ class _MenuScreenState extends State<MenuScreen> {
       return;
     }
 
-    // 2. Tee tegevus (nt joinPublic)
     action();
 
-    // 3. Suuna kasutaja ooteruumi (Waiting Room)
-    // See on vajalik, et täita juhendi nõuet "Must have a waiting room"
     if (mounted) {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const WaitingScreen()),
+        MaterialPageRoute(
+          builder: (context) =>
+              WaitingScreen(initialPlayerId: null, initialRoomCode: roomCode),
+        ),
       );
     }
   }
@@ -104,36 +101,32 @@ class _MenuScreenState extends State<MenuScreen> {
             children: [
               Image.asset('assets/CHESS.png', height: 200, width: 200),
               const SizedBox(height: 10),
-
               if (!_showPrivateCodeForm) ...[
-                // 1. JOIN PUBLIC GAME
                 _buildOvalButton(
                   label: "Join Public Game",
                   icon: Icons.public,
-                  backgroundColor: const Color.fromARGB(255, 126, 148, 134),
+                  backgroundColor: const Color.fromARGB(255, 222, 220, 210),
                   onPressed: () =>
                       _handleAction(() => socketService.joinPublic()),
                 ),
                 const SizedBox(height: 20),
-
-                // 2. CREATE PRIVATE GAME
                 _buildOvalButton(
                   label: "Create Private Game",
                   icon: Icons.lock,
-                  backgroundColor: const Color.fromARGB(255, 126, 148, 134),
+                  backgroundColor: const Color.fromARGB(255, 222, 220, 210),
                   onPressed: () {
-                    String roomCode = (Random().nextInt(9000) + 1000)
-                        .toString();
-                    _handleAction(() => socketService.createPrivate(roomCode));
+                    final roomCode = (Random().nextInt(9000) + 1000).toString();
+                    _handleAction(
+                      () => socketService.createPrivate(roomCode),
+                      roomCode: roomCode,
+                    );
                   },
                 ),
                 const SizedBox(height: 20),
-
-                // 3. JOIN PRIVATE GAME (shows form on tap)
                 _buildOvalButton(
                   label: "Join Private Game",
                   icon: Icons.lock_open,
-                  backgroundColor: const Color.fromARGB(255, 126, 148, 134),
+                  backgroundColor: const Color.fromARGB(255, 222, 220, 210),
                   onPressed: () {
                     setState(() {
                       _showPrivateCodeForm = true;
@@ -141,83 +134,131 @@ class _MenuScreenState extends State<MenuScreen> {
                   },
                 ),
               ] else ...[
-                // FORM FOR JOINING PRIVATE GAME
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.symmetric(horizontal: 22),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
+                    color: const Color.fromARGB(
+                      255,
+                      24,
+                      23,
+                      21,
+                    ).withOpacity(0.42),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color.fromARGB(255, 126, 148, 134),
-                      width: 2,
+                      color: const Color.fromARGB(
+                        255,
+                        225,
+                        215,
+                        170,
+                      ).withOpacity(0.28),
+                      width: 1,
                     ),
-                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.18),
+                        blurRadius: 22,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text(
-                        "Enter Game Code",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: _codeController,
-                        decoration: InputDecoration(
-                          hintText: "Game Code",
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          contentPadding: const EdgeInsets.all(15),
-                        ),
                         keyboardType: TextInputType.number,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 24),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                          color: Color.fromARGB(255, 49, 47, 43),
+                        ),
+                        decoration: InputDecoration(
+                          hintText: "Enter Game Code",
+                          isDense: true,
+                          filled: true,
+                          fillColor: Colors.white.withOpacity(0.92),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: Color.fromARGB(255, 225, 215, 170),
+                              width: 1.3,
+                            ),
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          ElevatedButton.icon(
-                            onPressed: _resetForm,
-                            icon: const Icon(Icons.arrow_back),
-                            label: const Text("Back"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 30,
-                                vertical: 15,
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _resetForm,
+                              icon: const Icon(Icons.arrow_back, size: 18),
+                              label: const Text("Back"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white.withOpacity(0.10),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                minimumSize: const Size(0, 42),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
                               ),
                             ),
                           ),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              if (_codeController.text.isNotEmpty) {
-                                _handleAction(
-                                  () => socketService.joinPrivate(
-                                    _codeController.text,
-                                  ),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Please enter a game code.'),
-                                  ),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.login),
-                            label: const Text("Join"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color.fromARGB(
-                                255,
-                                126,
-                                148,
-                                134,
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 30,
-                                vertical: 15,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                if (_codeController.text.isNotEmpty) {
+                                  _handleAction(
+                                    () => socketService.joinPrivate(
+                                      _codeController.text,
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please enter a game code.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.login, size: 18),
+                              label: const Text("Join"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color.fromARGB(255, 222, 220, 210),
+                                foregroundColor: const Color.fromARGB(255,49,47,43),
+                                elevation: 0,
+                                minimumSize: const Size(0, 42),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
                               ),
                             ),
                           ),
@@ -249,7 +290,7 @@ class _MenuScreenState extends State<MenuScreen> {
       ),
       style: ElevatedButton.styleFrom(
         backgroundColor: backgroundColor,
-        foregroundColor: Colors.white,
+        foregroundColor: const Color.fromARGB(255, 49, 47, 43),
         minimumSize: const Size(260, 56),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(35)),
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
