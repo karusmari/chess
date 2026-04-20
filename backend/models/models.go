@@ -1,6 +1,7 @@
 package models
 
 import "github.com/gorilla/websocket"
+import "github.com/notnil/chess"
 
 type Player struct {
 	ID   string
@@ -20,4 +21,5 @@ type Game struct {
     WhitePlayer *Player
     BlackPlayer *Player
     CurrentTurn string // "white" or "black"
+	ChessGame   *chess.Game
 }
