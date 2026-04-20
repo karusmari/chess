@@ -189,7 +189,7 @@ func CreatePrivate(p *models.Player, roomID string) {
 
 	p.Conn.WriteJSON(models.GameMessage{
 		Status:  "waiting",
-		Message: "Kutsu sõber koodiga: " + roomID,
+		Message: "Invite your friend with code: " + roomID,
 		RoomID:  roomID,
 	})
 }

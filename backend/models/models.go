@@ -17,6 +17,8 @@ type GameMessage struct {
 	RoomID  string `json:"room_id,omitempty"`
 	Color   string `json:"color,omitempty"`
 	YourID  string `json:"your_id,omitempty"`
+	Winner  string `json:"winner,omitempty"`
+	Method  string `json:"method,omitempty"`
 }
 
 type Game struct {

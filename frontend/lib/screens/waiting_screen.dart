@@ -15,9 +15,13 @@ class WaitingScreen extends StatefulWidget {
 }
 
 class _WaitingScreenState extends State<WaitingScreen> {
+  static const int _waitingTimeoutSeconds = 180;
   StreamSubscription<Map<String, dynamic>>? _socketSubscription;
+  Timer? _countdownTimer;
   String? _waitingPlayerId;
   String? _roomCode;
+  int _secondsLeft = _waitingTimeoutSeconds;
+  bool _isCancelling = false;
 
   void _showAccentSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -36,11 +40,39 @@ class _WaitingScreenState extends State<WaitingScreen> {
     );
   }
 
+  String get _countdownLabel {
+    final minutes = (_secondsLeft ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_secondsLeft % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  void _startCountdown() {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      if (_secondsLeft <= 1) {
+        timer.cancel();
+        _secondsLeft = 0;
+        _cancelWaiting(isTimeout: true);
+        return;
+      }
+
+      setState(() {
+        _secondsLeft -= 1;
+      });
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     _waitingPlayerId = widget.initialPlayerId;
     _roomCode = widget.initialRoomCode;
+    _startCountdown();
     // KUULAME SERVERIT: Kui keegi teine liitub, saadetakse "start"
     _socketSubscription = socketService.stream.listen((data) {
       print("WaitingScreen received data: $data");
@@ -53,6 +85,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
       if (data['status'] == 'error' && mounted) {
         final errorMessage =
             data['message']?.toString() ?? 'Something went wrong.';
+        _countdownTimer?.cancel();
         _showAccentSnackBar(errorMessage);
         _socketSubscription?.cancel();
         socketService.disconnect();
@@ -60,6 +93,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
         return;
       }
       if (data['status'] == 'start' && mounted) {
+        _countdownTimer?.cancel();
         socketService.sendReady();
         // Liigume mängu ekraanile ja eemaldame oote-ekraani ajaloost
         Navigator.pushReplacement(
@@ -73,7 +107,11 @@ class _WaitingScreenState extends State<WaitingScreen> {
     });
   }
 
-  Future<void> _cancelWaiting() async {
+  Future<void> _cancelWaiting({bool isTimeout = false}) async {
+    if (_isCancelling) return;
+    _isCancelling = true;
+    _countdownTimer?.cancel();
+
     if (_roomCode != null) {
       await socketService.cancelPrivateRoomById(_roomCode!);
     } else if (_waitingPlayerId != null) {
@@ -82,11 +120,15 @@ class _WaitingScreenState extends State<WaitingScreen> {
     await _socketSubscription?.cancel();
     await socketService.disconnect();
     if (!mounted) return;
+    if (isTimeout) {
+      _showAccentSnackBar('Waiting room timed out after 3:00.');
+    }
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
   void dispose() {
+    _countdownTimer?.cancel();
     _socketSubscription?.cancel();
     super.dispose();
   }
@@ -122,6 +164,16 @@ class _WaitingScreenState extends State<WaitingScreen> {
                 fontWeight: FontWeight.bold,
                 letterSpacing: 2.0,
                 color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              "Time left: $_countdownLabel",
+              style: const TextStyle(
+                color: Color.fromARGB(255, 222, 220, 210),
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.1,
               ),
             ),
 
@@ -193,7 +245,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
             ),
             const SizedBox(height: 30),
             ElevatedButton.icon(
-              onPressed: _cancelWaiting,
+              onPressed: () => _cancelWaiting(),
               icon: const Icon(Icons.close),
               label: const Text("Cancel"),
               style: ElevatedButton.styleFrom(

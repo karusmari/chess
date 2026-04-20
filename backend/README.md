@@ -15,3 +15,9 @@ backend/
 │   ├── game.go         # Käikude edastamine kahe mängija vahel
 │   └── models.go       # Structid: Player, Game, Message (JSON kuju)
 └── utils/              # Abifunktsioonid (nt UUID genereerimine)
+
+
+Running the test file:
+
+cd /Users/maris.karu/Desktop/chess/backend
+go test ./logic -run TestBuildGameOverMessage -v

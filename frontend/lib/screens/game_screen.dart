@@ -21,6 +21,7 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   // Loome kontrolleri siin, et see ei läheks kaduma
   final ChessBoardController _controller = ChessBoardController();
+  bool _gameOverShown = false;
 
   @override
   void initState() {
@@ -33,9 +34,15 @@ class _GameScreenState extends State<GameScreen> {
         setState(() {
           _controller.loadFen(data['fen']);
         });
-      } else if (data['status'] == 'opponent_left') {
+      } else if (data['status'] == 'opponent_left' && !_gameOverShown) {
         // Boonus: teavitus, kui vastane lahkub
         _showOpponentLeftDialog();
+      } else if (data['status'] == 'game_over' && !_gameOverShown) {
+        _gameOverShown = true;
+        _showGameOverDialog(
+          message: data['message']?.toString() ?? 'Game over.',
+          winner: data['winner']?.toString(),
+        );
       }
     });
   }
@@ -43,16 +50,179 @@ class _GameScreenState extends State<GameScreen> {
   void _showOpponentLeftDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Game Over"),
-        content: const Text("Opponent left the game."),
-        actions: [
-          TextButton(
-            onPressed: () =>
-                Navigator.of(context).popUntil((route) => route.isFirst),
-            child: const Text("Back to Menu"),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 340),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(22, 22, 22, 16),
+              decoration: BoxDecoration(
+                color: const ui.Color(0xFF1E2422),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: const ui.Color.fromARGB(255, 222, 220, 210),
+                  width: 1.5,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Game Over',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: ui.Color(0xFFF6F0E3),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Opponent left the game.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.35,
+                      color: ui.Color(0xFFE3D9C0),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).popUntil((route) => route.isFirst),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const ui.Color.fromARGB(
+                          255,
+                          222,
+                          220,
+                          210,
+                        ),
+                        foregroundColor: const ui.Color.fromARGB(
+                          255,
+                          49,
+                          47,
+                          43,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'Back to Menu',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  void _showGameOverDialog({required String message, String? winner}) {
+    final winnerLabel = switch (winner) {
+      'white' => 'Winner: White',
+      'black' => 'Winner: Black',
+      _ => 'Result: Draw',
+    };
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 340),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(22, 22, 22, 16),
+              decoration: BoxDecoration(
+                color: const ui.Color(0xFF1E2422),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: const ui.Color.fromARGB(255, 222, 220, 210),
+                  width: 1.5,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Game Over',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: ui.Color(0xFFF6F0E3),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    winnerLabel,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: ui.Color.fromARGB(255, 222, 220, 210),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.4,
+                      color: ui.Color(0xFFE3D9C0),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(
+                        context,
+                      ).popUntil((route) => route.isFirst),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const ui.Color.fromARGB(
+                          255,
+                          222,
+                          220,
+                          210,
+                        ),
+                        foregroundColor: const ui.Color.fromARGB(
+                          255,
+                          49,
+                          47,
+                          43,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text(
+                        'Back to Menu',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -95,7 +265,12 @@ class _GameScreenState extends State<GameScreen> {
                           subtitle: isOpponentTurn ? "Their move" : "Waiting",
                           isActive: isOpponentTurn,
                           activeLabel: isOpponentTurn ? turnText : null,
-                          activeColor: const ui.Color.fromARGB(255, 225, 215, 170),
+                          activeColor: const ui.Color.fromARGB(
+                            255,
+                            225,
+                            215,
+                            170,
+                          ),
                         ),
                         const SizedBox(height: 14),
 
