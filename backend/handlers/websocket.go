@@ -14,6 +14,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
+// HandleConnections upgrades the HTTP connection to a WebSocket and processes incoming messages for matchmaking and game actions.
 func HandleConnections(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -21,8 +22,8 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	player := &models.Player{
-		ID:   uuid.New().String(),
+	player := &models.Player{ // Create a new player with a unique ID and the WebSocket connection.
+		ID:   uuid.New().String(), // Generate a unique player ID using UUID.
 		Conn: conn,
 	}
 
@@ -33,13 +34,15 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error reading initial message:", err)
 		return
 	}
-
+    
+	// Expecting the initial message to contain an "action" field that determines what the player wants to do.
 	action := initMsg["action"]
 	roomID := initMsg["room_id"] // could be empty for "join_public"
 	playerID := initMsg["player_id"]
 
 	fmt.Printf("Player %s connected with action: %s, room_id: %s\n", player.ID, action, roomID)
-
+    
+	// Handle the action based on the client's request
 	switch action {
 	case "join_public":
 		logic.Matchmaking(player)

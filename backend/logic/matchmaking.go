@@ -1,7 +1,7 @@
 package logic
 
 import (
-	"backend/models" // Kasuta oma mooduli nime go.mod failist!
+	"backend/models"
 	"fmt"
 	"sync"
 	"time"
@@ -181,7 +181,7 @@ func waitForReady(p *models.Player) bool {
 	}
 }
 
-// CreatePrivate ootab sõpra konkreetse koodiga
+// CreatePrivate puts the host into a private room identified by roomID.
 func CreatePrivate(p *models.Player, roomID string) {
 	Mu.Lock()
 	PrivateRooms[roomID] = p
@@ -194,7 +194,7 @@ func CreatePrivate(p *models.Player, roomID string) {
 	})
 }
 
-// JoinPrivate kontrollib, kas selline kood on ootel
+// JoinPrivate checks whether the given private room exists and starts the game if it does.
 func JoinPrivate(p *models.Player, roomID string) {
 	Mu.Lock()
 	host, exists := PrivateRooms[roomID]
@@ -205,20 +205,20 @@ func JoinPrivate(p *models.Player, roomID string) {
 		return
 	}
 
-	// Kui leiti, kustutame ooteruumist ja loome mängu
+	// Room found: remove it from waiting rooms and create an active game.
 	delete(PrivateRooms, roomID)
 
 	gameID := uuid.New().String()
 	newGame := &models.Game{
 		ID:          gameID,
-		WhitePlayer: host, // Kutsuja on valge
-		BlackPlayer: p,    // Liituja on must
+		WhitePlayer: host, // Host plays white.
+		BlackPlayer: p,    // Joiner plays black.
 		CurrentTurn: "white",
 	}
-	ActiveGames[gameID] = newGame // SALVESTAME AKTIIVSETE MÄNGUDE ALLA
+	ActiveGames[gameID] = newGame // Store the game in active sessions.
 	Mu.Unlock()
 
-	// Saadame mõlemale start-sõnumi
+	// Notify both players that the game has started.
 	host.Conn.WriteJSON(models.GameMessage{Status: "start", GameID: gameID, Color: "white"})
 	p.Conn.WriteJSON(models.GameMessage{Status: "start", GameID: gameID, Color: "black"})
 

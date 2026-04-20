@@ -3,28 +3,25 @@ package logic
 import (
 	"backend/models"
 	"fmt"
+	"strings"
 
 	"github.com/notnil/chess"
 )
 
+// HandleGame manages the game loop between two players, relaying moves and handling game over conditions.
 func HandleGame(p1, p2 *models.Player, game *models.Game) {
 	fmt.Printf("Game %s is now active between %s and %s\n", game.ID, p1.ID, p2.ID)
 	if game.ChessGame == nil {
 		game.ChessGame = chess.NewGame()
 	}
-	// Kanal, mille kaudu mängijad sõnumeid saadavad
-	// Lisame siia juurde info, mis värvi keegi on
-	go relayMoves(p1, p2, "white", game) // p1 on valge (esimene ootaja)
-	go relayMoves(p2, p1, "black", game) // p2 on must
+	// Start one relay goroutine per player direction and keep color info per relay.
+	go relayMoves(p1, p2, "white", game) // p1 is white.
+	go relayMoves(p2, p1, "black", game) // p2 is black.
 }
 
-// currentTurn on globaalne või mängupõhine.
-// Lihtsuse mõttes teeme siia muutuja (NB! Päris süsteemis peaks see olema Game struktuuri sees)
-
+// relayMoves continuously reads moves from one player and forwards them to the opponent, while also checking for game over conditions after each move.
 func relayMoves(from, to *models.Player, playerColor string, game *models.Game) {
-	defer func() {
-		// Only send opponent_left when the game is still active.
-		// If game_over already happened, ActiveGames no longer contains this game.
+	defer func() { // Clean up game and notify opponent if a player disconnects.
 		Mu.Lock()
 		_, isActive := ActiveGames[game.ID]
 		if isActive {
@@ -45,12 +42,12 @@ func relayMoves(from, to *models.Player, playerColor string, game *models.Game) 
 
 		if msg["type"] == "move" {
 			fen, _ := msg["fen"].(string)
-			fenOption, fenErr := chess.FEN(fen)
-			if fenErr != nil {
-				fmt.Printf("[%s] Invalid FEN received: %v\n", game.ID, fenErr)
+			if strings.TrimSpace(fen) == "" {
+				from.Conn.WriteJSON(map[string]string{"status": "error", "message": "Move payload is missing FEN"})
 				continue
 			}
-			updatedGame := chess.NewGame(fenOption)
+
+			var acceptedFEN string
 
 			Mu.Lock()
 			if playerColor != game.CurrentTurn {
@@ -58,18 +55,30 @@ func relayMoves(from, to *models.Player, playerColor string, game *models.Game) 
 				Mu.Unlock()
 				continue
 			}
-			game.ChessGame = updatedGame
 
-			// Kui oli õige kord, vahetame korra ära
+			updatedGame, transitionErr := verifyFENTransition(game.ChessGame, fen)
+			if transitionErr != nil {
+				Mu.Unlock()
+				fmt.Printf("[%s] Illegal move transition: %v\n", game.ID, transitionErr)
+				from.Conn.WriteJSON(map[string]string{"status": "error", "message": "Illegal move"})
+				continue
+			}
+			game.ChessGame = updatedGame
+			acceptedFEN = game.ChessGame.FEN()
+
+			// Valid move: switch turn to the other color.
 			if game.CurrentTurn == "white" {
 				game.CurrentTurn = "black"
 			} else {
 				game.CurrentTurn = "white"
 			}
 			Mu.Unlock()
+
+			// Forward the canonical server FEN, not raw client input.
+			msg["fen"] = acceptedFEN
 		}
 
-		// Saadame sõnumi edasi vastasele
+		// Forward the move payload to the opponent.
 		to.Conn.WriteJSON(msg)
 
 		if msg["type"] == "move" {
@@ -92,6 +101,45 @@ func relayMoves(from, to *models.Player, playerColor string, game *models.Game) 
 	}
 }
 
+// verifyFENTransition checks whether targetFEN is reachable from current by exactly one legal move.
+func verifyFENTransition(current *chess.Game, targetFEN string) (*chess.Game, error) {
+	if current == nil {
+		return nil, fmt.Errorf("current game is nil")
+	}
+
+	targetOption, err := chess.FEN(targetFEN)
+	if err != nil {
+		return nil, fmt.Errorf("invalid target FEN: %w", err)
+	}
+	targetGame := chess.NewGame(targetOption)
+	targetKey := fenComparableKey(targetGame.FEN())
+
+	for _, move := range current.ValidMoves() {
+		candidate := current.Clone()
+		if moveErr := candidate.Move(move); moveErr != nil {
+			continue
+		}
+
+		if fenComparableKey(candidate.FEN()) == targetKey {
+			return candidate, nil
+		}
+	}
+
+	return nil, fmt.Errorf("target FEN is not reachable by one legal move")
+}
+
+// fenComparableKey compares board-relevant FEN parts and ignores move counters.
+func fenComparableKey(fen string) string {
+	parts := strings.Fields(strings.TrimSpace(fen))
+	if len(parts) < 4 {
+		return strings.TrimSpace(fen)
+	}
+
+	return strings.Join(parts[:4], " ")
+}
+
+// buildGameOverMessage constructs a GameMessage with the appropriate status, winner, and message based on the final state of the chess game.
+// these are the messages client sees 
 func buildGameOverMessage(game *models.Game) models.GameMessage {
 	winner := "draw"
 	message := "Game over. Draw."
@@ -125,6 +173,7 @@ func buildGameOverMessage(game *models.Game) models.GameMessage {
 	}
 }
 
+// 
 func formatOutcomeMethod(method chess.Method) string {
 	switch method {
 	case chess.Checkmate:

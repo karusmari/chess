@@ -65,6 +65,34 @@ func TestBuildGameOverMessage_DrawByInsufficientMaterial(t *testing.T) {
 	}
 }
 
+func TestVerifyFENTransition_AllowsLegalOneMoveTransition(t *testing.T) {
+	current := chess.NewGame()
+	target := current.Clone()
+	if err := target.MoveStr("e4"); err != nil {
+		t.Fatalf("failed to create legal target position: %v", err)
+	}
+
+	updated, err := verifyFENTransition(current, target.FEN())
+	if err != nil {
+		t.Fatalf("expected legal transition to pass, got error: %v", err)
+	}
+
+	if fenComparableKey(updated.FEN()) != fenComparableKey(target.FEN()) {
+		t.Fatalf("expected updated position to match target position")
+	}
+}
+
+func TestVerifyFENTransition_RejectsIllegalTransition(t *testing.T) {
+	current := chess.NewGame()
+	// Valid FEN format but not reachable from the initial position by one legal white move.
+	illegalTarget := "rnbqkbnr/pppppppp/8/8/4Q3/8/PPPPPPPP/RNB1KBNR b KQkq - 0 1"
+
+	_, err := verifyFENTransition(current, illegalTarget)
+	if err == nil {
+		t.Fatalf("expected illegal transition to fail")
+	}
+}
+
 func gameFromFEN(t *testing.T, fen string) *chess.Game {
 	t.Helper()
 
