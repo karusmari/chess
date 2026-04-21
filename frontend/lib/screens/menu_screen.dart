@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import '../services/websocket_service.dart';
-import 'game_screen.dart'; // Lisa see import, et Navigator teaks kuhu minna
 import 'waiting_screen.dart';
 
 class MenuScreen extends StatefulWidget {
@@ -14,43 +13,6 @@ class MenuScreen extends StatefulWidget {
 class _MenuScreenState extends State<MenuScreen> {
   final TextEditingController _codeController = TextEditingController();
   bool _showPrivateCodeForm = false;
-
-  @override
-  void initState() {
-    super.initState();
-
-    socketService.stream.listen((data) {
-      if (!mounted) return;
-
-      if (data['status'] == 'waiting') {
-        if (data['room_id'] == null && mounted) {
-          final waitingPlayerId = data['your_id'] is String
-              ? data['your_id'] as String
-              : null;
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  WaitingScreen(initialPlayerId: waitingPlayerId),
-            ),
-          );
-        }
-      } else if (data['status'] == 'start') {
-        if (mounted) {
-          socketService.sendReady();
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => GameScreen(
-                gameId: data['game_id'],
-                playerColor: data['color'],
-              ),
-            ),
-          );
-        }
-      }
-    });
-  }
 
   void _resetForm() {
     setState(() {
@@ -250,8 +212,18 @@ class _MenuScreenState extends State<MenuScreen> {
                               icon: const Icon(Icons.login, size: 18),
                               label: const Text("Join"),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color.fromARGB(255, 222, 220, 210),
-                                foregroundColor: const Color.fromARGB(255,49,47,43),
+                                backgroundColor: const Color.fromARGB(
+                                  255,
+                                  222,
+                                  220,
+                                  210,
+                                ),
+                                foregroundColor: const Color.fromARGB(
+                                  255,
+                                  49,
+                                  47,
+                                  43,
+                                ),
                                 elevation: 0,
                                 minimumSize: const Size(0, 42),
                                 padding: const EdgeInsets.symmetric(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -19,25 +20,40 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  // Loome kontrolleri siin, et see ei läheks kaduma
+  // Controls board state and allows reading/updating FEN from UI changes.
   final ChessBoardController _controller = ChessBoardController();
+  StreamSubscription<Map<String, dynamic>>? _socketSubscription;
+  // Prevents showing duplicate end-of-game dialogs from multiple socket events.
   bool _gameOverShown = false;
+
+  Future<void> _leaveGame() async {
+    if (_gameOverShown) return;
+    _gameOverShown = true;
+
+    await _socketSubscription?.cancel();
+    _socketSubscription = null;
+    await socketService.disconnect();
+
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
 
   @override
   void initState() {
     super.initState();
 
-    // HAKKAME KUULAMA SERVERIT
-    socketService.stream.listen((data) {
+    // Listen to real-time server events for this game session.
+    _socketSubscription = socketService.stream.listen((data) {
       if (data['type'] == 'move') {
-        // Kui serverist tuleb uus seis (FEN), laeme selle lauale
+        // Server sends the canonical FEN after each valid move.
         setState(() {
           _controller.loadFen(data['fen']);
         });
       } else if (data['status'] == 'opponent_left' && !_gameOverShown) {
-        // Boonus: teavitus, kui vastane lahkub
+        // Show a final dialog if the opponent disconnects before game_over.
         _showOpponentLeftDialog();
       } else if (data['status'] == 'game_over' && !_gameOverShown) {
+        // Show exactly one final result dialog.
         _gameOverShown = true;
         _showGameOverDialog(
           message: data['message']?.toString() ?? 'Game over.',
@@ -47,7 +63,17 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _socketSubscription?.cancel();
+    // Leaving the game screen should close the live game socket.
+    // This allows backend to notify the opponent that this player left.
+    socketService.disconnect();
+    super.dispose();
+  }
+
   void _showOpponentLeftDialog() {
+    // Uses the same visual style as game-over dialog for consistency.
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -130,6 +156,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _showGameOverDialog({required String message, String? winner}) {
+    // Translate backend winner value into a user-friendly label.
     final winnerLabel = switch (winner) {
       'white' => 'Winner: White',
       'black' => 'Winner: Black',
@@ -238,12 +265,11 @@ class _GameScreenState extends State<GameScreen> {
                 ? constraints.maxWidth * 0.92
                 : constraints.maxHeight * 0.62;
 
-            // Kasutame ValueListenableBuilderit, et kuulata mängu seisu muutusi
+            // Rebuild player indicators when board turn/state changes.
             return ValueListenableBuilder<Chess>(
               valueListenable: _controller,
               builder: (context, game, _) {
-                // KONTROLL: Kas on praeguse mängija kord?
-                // game.turn väärtus on Color.WHITE või Color.BLACK
+                // Determine whose turn it is and whether local player may move.
                 final isWhiteTurn = game.turn == Color.WHITE;
                 final isMyTurn =
                     (widget.playerColor == "white" && isWhiteTurn) ||
@@ -262,7 +288,6 @@ class _GameScreenState extends State<GameScreen> {
                         _buildPlayerPanel(
                           width: boardSize,
                           title: "Opponent",
-                          subtitle: isOpponentTurn ? "Their move" : "Waiting",
                           isActive: isOpponentTurn,
                           activeLabel: isOpponentTurn ? turnText : null,
                           activeColor: const ui.Color.fromARGB(
@@ -274,19 +299,20 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                         const SizedBox(height: 14),
 
-                        // MALELAUD
+                        // Main chess board.
                         SizedBox(
                           width: boardSize,
                           height: boardSize,
                           child: ChessBoard(
                             controller: _controller,
-                            // LUKUSTAME LAUA: Lubame käike ainult siis, kui on mängija kord
+                            // Client-side guard: local user can move only on own turn.
                             enableUserMoves: isMyTurn,
                             boardColor: BoardColor.darkBrown,
                             boardOrientation: widget.playerColor == "white"
                                 ? PlayerColor.white
                                 : PlayerColor.black,
                             onMove: () {
+                              // Send updated board state to backend for validation.
                               final newFen = _controller.getFen();
                               socketService.sendMove(newFen);
                               print("Sent the move!");
@@ -298,10 +324,34 @@ class _GameScreenState extends State<GameScreen> {
                         _buildPlayerPanel(
                           width: boardSize,
                           title: "You",
-                          subtitle: isMyTurn ? "Your move" : "Waiting",
                           isActive: isMyTurn,
                           activeLabel: isMyTurn ? turnText : null,
                           activeColor: Colors.green,
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: boardSize,
+                          child: OutlinedButton.icon(
+                            onPressed: _leaveGame,
+                            icon: const Icon(Icons.exit_to_app_rounded),
+                            label: const Text('Leave Game'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const ui.Color.fromARGB(
+                                255,
+                                222,
+                                220,
+                                210,
+                              ),
+                              side: const BorderSide(
+                                color: ui.Color.fromARGB(255, 222, 220, 210),
+                                width: 1.2,
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -318,23 +368,20 @@ class _GameScreenState extends State<GameScreen> {
   Widget _buildPlayerPanel({
     required double width,
     required String title,
-    required String subtitle,
     required bool isActive,
     required dynamic activeColor,
     String? activeLabel,
   }) {
+    const panelBorderColor = ui.Color.fromARGB(255, 222, 220, 210);
     return Container(
       width: width,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: isActive
-            ? activeColor.withOpacity(0.12)
-            : Colors.black.withOpacity(0.04),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isActive ? activeColor : Colors.black.withOpacity(0.08),
-          width: 1.4,
-        ),
+            ? const ui.Color.fromARGB(255, 222, 220, 210).withOpacity(0.08)
+            : const ui.Color.fromARGB(255, 222, 220, 210).withOpacity(0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: panelBorderColor, width: 1.2),
       ),
       child: Row(
         children: [
@@ -347,17 +394,7 @@ class _GameScreenState extends State<GameScreen> {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isActive
-                        ? activeColor
-                        : Colors.black.withOpacity(0.6),
-                    fontWeight: FontWeight.w500,
+                    color: ui.Color(0xFFF6F0E3),
                   ),
                 ),
               ],
