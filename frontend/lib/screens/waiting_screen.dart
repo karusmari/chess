@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import '../services/websocket_service.dart';
-import 'game_screen.dart'; 
+import 'game_screen.dart';
 
 class WaitingScreen extends StatefulWidget {
   final String? initialPlayerId;
@@ -16,6 +16,46 @@ class WaitingScreen extends StatefulWidget {
 
 class _WaitingScreenState extends State<WaitingScreen> {
   static const int _waitingTimeoutSeconds = 180;
+  static const Color _primaryTextColor = Colors.white;
+  static const Color _secondaryTextColor = Color.fromARGB(255, 222, 220, 210);
+  static const Color _mutedTextColor = Color.fromARGB(255, 188, 180, 158);
+
+  static const TextStyle _titleTextStyle = TextStyle(
+    fontSize: 22,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 1.0,
+    color: _primaryTextColor,
+  );
+
+  static const TextStyle _metaTextStyle = TextStyle(
+    color: _secondaryTextColor,
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.6,
+  );
+
+  static const TextStyle _roomLabelTextStyle = TextStyle(
+    color: _primaryTextColor,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.6,
+  );
+
+  static const TextStyle _roomCodeTextStyle = TextStyle(
+    color: _primaryTextColor,
+    fontSize: 28,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 2.0,
+  );
+
+  static const TextStyle _bodyTextStyle = TextStyle(
+    color: _mutedTextColor,
+    fontSize: 15,
+    fontWeight: FontWeight.w400,
+    height: 1.4,
+    letterSpacing: 0.2,
+  );
+
   StreamSubscription<Map<String, dynamic>>? _socketSubscription;
   Timer? _countdownTimer;
   String? _waitingPlayerId;
@@ -73,7 +113,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
     _waitingPlayerId = widget.initialPlayerId;
     _roomCode = widget.initialRoomCode;
     _startCountdown();
-    // Listen to incoming messages from the WS server. 
+    // Listen to incoming messages from the WS server.
     // This will let us react to events like "waiting", "start", or "error" that the server sends us.
     _socketSubscription = socketService.stream.listen((data) {
       if (data['status'] == 'waiting' && data['your_id'] is String) {
@@ -107,7 +147,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
     });
   }
 
-  // This method is used to cancel the waiting state. 
+  // This method is used to cancel the waiting state.
   // It can be triggered either by the user pressing the "Cancel" button or by the countdown timer running out.
   Future<void> _cancelWaiting({bool isTimeout = false}) async {
     if (_isCancelling) return;
@@ -141,7 +181,6 @@ class _WaitingScreenState extends State<WaitingScreen> {
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(
-          // Teeme väikse gradiendi, et näeks "proffim" välja
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -151,90 +190,71 @@ class _WaitingScreenState extends State<WaitingScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Tiirutav laadimisikoon
+            // circular progress indicator while waiting for the game to start
             const CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Colors.brown),
               strokeWidth: 6,
             ),
             const SizedBox(height: 40),
 
-            // Tekst kasutajale
-            const Text(
-              "Waiting...",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2.0,
-                color: Colors.white,
-              ),
-            ),
+            // Title and countdown timer
+            const Text("Waiting...", style: _titleTextStyle),
             const SizedBox(height: 10),
-            Text(
-              "Time left: $_countdownLabel",
-              style: const TextStyle(
-                color: Color.fromARGB(255, 222, 220, 210),
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.1,
-              ),
-            ),
+            Text("Time left: $_countdownLabel", style: _metaTextStyle),
 
             const SizedBox(height: 50),
 
             if (_roomCode != null) ...[
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 32),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.06),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white24),
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      "Room Code",
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 270),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
+                  padding: const EdgeInsets.fromLTRB(14, 8, 8, 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            onPressed: () async {
+                              await Clipboard.setData(
+                                ClipboardData(text: _roomCode!),
+                              );
+                              if (!mounted) return;
+                              _showAccentSnackBar('Room code copied');
+                            },
+                            icon: const Icon(Icons.copy_rounded),
+                            color: Colors.white70,
+                            iconSize: 20,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                            splashRadius: 16,
+                            visualDensity: VisualDensity.compact,
+                            tooltip: 'Copy code',
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _roomCode!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextButton.icon(
-                      onPressed: () async {
-                        await Clipboard.setData(
-                          ClipboardData(text: _roomCode!),
-                        );
-                        if (!mounted) return;
-                        _showAccentSnackBar('Room code copied');
-                      },
-                      icon: const Icon(Icons.copy, color: Colors.white70),
-                      label: const Text(
-                        "Copy code",
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      const Text("Room Code", style: _roomLabelTextStyle),
+                      const SizedBox(height: 8),
+                      Text(_roomCode!, style: _roomCodeTextStyle),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 28),
             ],
 
-            // Tekst kasutajale sõltuvalt mängu tüübist
+            // description text based on whether it's a private room or public matchmaking
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 40),
               child: Text(
@@ -242,7 +262,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
                     ? "You have started a private game. Share this code with your opponent so you can play together."
                     : "The game will start as soon as we find an opponent. Please wait patiently and get ready to play some chess!",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
+                style: _bodyTextStyle,
               ),
             ),
             const SizedBox(height: 30),
@@ -255,7 +275,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
                 foregroundColor: const Color.fromARGB(255, 49, 47, 43),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 28,
-                  vertical: 12,
+                  vertical: 10,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(30),

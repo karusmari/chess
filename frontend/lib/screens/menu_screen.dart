@@ -104,20 +104,10 @@ class _MenuScreenState extends State<MenuScreen> {
                     vertical: 16,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(
-                      255,
-                      24,
-                      23,
-                      21,
-                    ).withOpacity(0.42),
+                    color: const Color.fromARGB(255,24,23,21,).withOpacity(0.42),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color.fromARGB(
-                        255,
-                        225,
-                        215,
-                        170,
-                      ).withOpacity(0.28),
+                      color: const Color.fromARGB(255,225,215,170,).withOpacity(0.28),
                       width: 1,
                     ),
                     boxShadow: [
@@ -148,7 +138,7 @@ class _MenuScreenState extends State<MenuScreen> {
                           fillColor: Colors.white.withOpacity(0.92),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 14,
-                            vertical: 12,
+                            vertical: 10,
                           ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -181,7 +171,7 @@ class _MenuScreenState extends State<MenuScreen> {
                                 elevation: 0,
                                 minimumSize: const Size(0, 42),
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                                  vertical: 10,
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(24),
@@ -212,22 +202,12 @@ class _MenuScreenState extends State<MenuScreen> {
                               icon: const Icon(Icons.login, size: 18),
                               label: const Text("Join"),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color.fromARGB(
-                                  255,
-                                  222,
-                                  220,
-                                  210,
-                                ),
-                                foregroundColor: const Color.fromARGB(
-                                  255,
-                                  49,
-                                  47,
-                                  43,
-                                ),
+                                backgroundColor: const Color.fromARGB(255,222,220,210),
+                                foregroundColor: const Color.fromARGB(255,49,47,43),
                                 elevation: 0,
                                 minimumSize: const Size(0, 42),
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                                  vertical: 10,
                                 ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(24),
