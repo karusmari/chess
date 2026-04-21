@@ -70,10 +70,7 @@ class WebSocketService {
   Future<void> cancelWaitingById(String playerId) async {
     if (playerId.isEmpty) return;
 
-    final url = const String.fromEnvironment(
-      'WEBSOCKET_URL',
-      defaultValue: _defaultWebSocketUrl,
-    );
+    final url = const String.fromEnvironment('WEBSOCKET_URL', defaultValue: _defaultWebSocketUrl);
 
     try {
       final tempChannel = WebSocketChannel.connect(Uri.parse(url));
@@ -90,10 +87,7 @@ class WebSocketService {
   Future<void> cancelPrivateRoomById(String roomId) async {
     if (roomId.isEmpty) return;
 
-    final url = const String.fromEnvironment(
-      'WEBSOCKET_URL',
-      defaultValue: _defaultWebSocketUrl,
-    );
+    final url = const String.fromEnvironment('WEBSOCKET_URL', defaultValue: _defaultWebSocketUrl);
 
     try {
       final tempChannel = WebSocketChannel.connect(Uri.parse(url));
@@ -119,21 +113,21 @@ class WebSocketService {
     _controller.close();
   }
 
-  // 1. AVALIK MÄNG
+  // public game
   void joinPublic() {
     _sendData({"action": "join_public"});
   }
 
-  // 2. LOO PRIVAATNE (Kutsu sõber)
+  // creating private room (friend code)
   void createPrivate(String roomId) {
     _sendData({"action": "create_private", "room_id": roomId});
   }
 
-  // 3. LIITU PRIVAATSEGA (Sõbra koodiga)
+  // joining the private room (friend code)
   void joinPrivate(String roomId) {
     _sendData({"action": "join_private", "room_id": roomId});
   }
 }
 
-// Teeme globaalse teenuse, mida saame igal pool kasutada
+// creating a global instance of the WebSocketService that can be imported and used across the app.
 final socketService = WebSocketService();

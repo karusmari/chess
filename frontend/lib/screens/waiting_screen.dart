@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import '../services/websocket_service.dart';
-import 'game_screen.dart'; // Lisa see import, et Navigator teaks kuhu minna
+import 'game_screen.dart'; 
 
 class WaitingScreen extends StatefulWidget {
   final String? initialPlayerId;
@@ -73,9 +73,9 @@ class _WaitingScreenState extends State<WaitingScreen> {
     _waitingPlayerId = widget.initialPlayerId;
     _roomCode = widget.initialRoomCode;
     _startCountdown();
-    // KUULAME SERVERIT: Kui keegi teine liitub, saadetakse "start"
+    // Listen to incoming messages from the WS server. 
+    // This will let us react to events like "waiting", "start", or "error" that the server sends us.
     _socketSubscription = socketService.stream.listen((data) {
-      print("WaitingScreen received data: $data");
       if (data['status'] == 'waiting' && data['your_id'] is String) {
         _waitingPlayerId = data['your_id'] as String;
       }
@@ -95,7 +95,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
       if (data['status'] == 'start' && mounted) {
         _countdownTimer?.cancel();
         socketService.sendReady();
-        // Liigume mängu ekraanile ja eemaldame oote-ekraani ajaloost
+        // Navigate to the GameScreen and pass the game ID and player color that we received from the server.
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -107,6 +107,8 @@ class _WaitingScreenState extends State<WaitingScreen> {
     });
   }
 
+  // This method is used to cancel the waiting state. 
+  // It can be triggered either by the user pressing the "Cancel" button or by the countdown timer running out.
   Future<void> _cancelWaiting({bool isTimeout = false}) async {
     if (_isCancelling) return;
     _isCancelling = true;

@@ -289,7 +289,8 @@ class _GameScreenState extends State<GameScreen> {
                           width: boardSize,
                           title: "Opponent",
                           isActive: isOpponentTurn,
-                          activeLabel: isOpponentTurn ? turnText : null,
+                          activeLabel: turnText,
+                          showActiveChip: isOpponentTurn,
                           activeColor: const ui.Color.fromARGB(
                             255,
                             225,
@@ -325,7 +326,8 @@ class _GameScreenState extends State<GameScreen> {
                           width: boardSize,
                           title: "You",
                           isActive: isMyTurn,
-                          activeLabel: isMyTurn ? turnText : null,
+                          activeLabel: turnText,
+                          showActiveChip: isMyTurn,
                           activeColor: Colors.green,
                         ),
                         const SizedBox(height: 12),
@@ -370,7 +372,8 @@ class _GameScreenState extends State<GameScreen> {
     required String title,
     required bool isActive,
     required dynamic activeColor,
-    String? activeLabel,
+    required String activeLabel,
+    required bool showActiveChip,
   }) {
     const panelBorderColor = ui.Color.fromARGB(255, 222, 220, 210);
     return Container(
@@ -389,38 +392,61 @@ class _GameScreenState extends State<GameScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: ui.Color(0xFFF6F0E3),
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.person_outline_rounded,
+                      size: 18,
+                      color: ui.Color(0xFFF6F0E3),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                        color: ui.Color(0xFFF6F0E3),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          if (activeLabel != null)
-            _buildTurnChip(label: activeLabel, color: activeColor),
+          _buildTurnChip(
+            label: activeLabel,
+            color: activeColor,
+            isVisible: showActiveChip,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildTurnChip({required String label, required dynamic color}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.16),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(0.45)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          color: color,
-          fontWeight: FontWeight.w800,
+  Widget _buildTurnChip({
+    required String label,
+    required dynamic color,
+    required bool isVisible,
+  }) {
+    return Opacity(
+      opacity: isVisible ? 1 : 0,
+      child: Container(
+        width: 144,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.16),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withOpacity(0.45)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: color,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );
