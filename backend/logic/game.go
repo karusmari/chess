@@ -173,7 +173,7 @@ func buildGameOverMessage(game *models.Game) models.GameMessage {
 	}
 }
 
-// 
+// formatOutcomeMethod converts a chess.Method to a human-readable string for game over messages.
 func formatOutcomeMethod(method chess.Method) string {
 	switch method {
 	case chess.Checkmate:

@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	// Kõik WebSocketi päringud suuname handlerisse
+	// All the WebSocket connections will be handled by the HandleConnections function in the handlers package.
 	http.HandleFunc("/ws", handlers.HandleConnections)
 
 	port := ":8080"

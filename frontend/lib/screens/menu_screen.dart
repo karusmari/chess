@@ -65,6 +65,7 @@ class _MenuScreenState extends State<MenuScreen> {
     super.dispose();
   }
 
+  // if the user picks one of the options, we connect to the websocket server and send the first action message (join public, create private, join private).
   Future<void> _handleAction(Function action, {String? roomCode}) async {
     final connected = await socketService.connect();
     if (!connected) {

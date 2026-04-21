@@ -1,28 +1,30 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:web_socket_channel/io.dart';
 
 class WebSocketService {
   WebSocketChannel? _channel;
-  static const String _defaultWebSocketUrl =
-      'wss://lashaunda-hereditary-nonconvectively.ngrok-free.dev/ws';
+  static const String _defaultWebSocketUrl = 'wss://lashaunda-hereditary-nonconvectively.ngrok-free.dev/ws';
 
-  // StreamController võimaldab meil saata andmeid mitmele ekraanile korraga
-  final StreamController<Map<String, dynamic>> _controller =
-      StreamController<Map<String, dynamic>>.broadcast();
-
+  // StreamController lets us easily listen to incoming messages from the WebSocket 
+  // and broadcast them to multiple devices/listeners if needed.
+  final StreamController<Map<String, dynamic>> _controller = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get stream => _controller.stream;
-
+  
+  // Connect to the WebSocket server. This is called when the app starts or when we want to establish a connection.
   Future<bool> connect() async {
-    _channel?.sink.close();
-    final url = const String.fromEnvironment(
-      'WEBSOCKET_URL',
-      defaultValue: _defaultWebSocketUrl,
-    );
+    if (_channel != null && _channel!.closeCode == null) return true; // if already connected, do nothing
+
+    final url = const String.fromEnvironment('WEBSOCKET_URL', defaultValue: _defaultWebSocketUrl);
 
     try {
-      _channel = WebSocketChannel.connect(Uri.parse(url));
-      // Ootame, kuni stream on valmis (või lihtsalt anname hetke aega)
+      _channel = IOWebSocketChannel.connect(
+        Uri.parse(url),
+        headers: {'ngrok-skip-browser-warning': 'true'}, // This header is needed to bypass ngrok's browser warning for WebSocket connections.
+        );
+      // waiting until the connection is fully established before proceeding. 
+      // This ensures that we don't try to send or receive messages before the WebSocket is ready.
       await _channel!.ready;
       print("Connected to $url");
 
@@ -43,6 +45,7 @@ class WebSocketService {
     }
   }
 
+  // Helper method to send data to the WebSocket server. It checks if the connection is established before trying to send a message.
   void _sendData(Map<String, dynamic> data) {
     if (_channel != null) {
       _channel!.sink.add(jsonEncode(data));
@@ -50,7 +53,10 @@ class WebSocketService {
       print("WebSocket is not connected. Cannot send data.");
     }
   }
-
+  
+  // This method is used to send a move (in FEN format) to the server. 
+  // It constructs a message with the type "move" and the FEN string, 
+  // and sends it using the _sendData helper method.
   void sendMove(String fen) {
     if (_channel != null) {
       _sendData({"type": "move", "fen": fen});
