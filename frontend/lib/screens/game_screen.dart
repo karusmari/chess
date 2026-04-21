@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_chess_board/flutter_chess_board.dart';
+import 'menu_screen.dart';
 import '../services/websocket_service.dart';
 
 class GameScreen extends StatefulWidget {
@@ -35,7 +36,10 @@ class _GameScreenState extends State<GameScreen> {
     await socketService.disconnect();
 
     if (!mounted) return;
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MenuScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -119,9 +123,10 @@ class _GameScreenState extends State<GameScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.of(
-                        context,
-                      ).popUntil((route) => route.isFirst),
+                      onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const MenuScreen()),
+                        (route) => false,
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const ui.Color.fromARGB(
                           255,
@@ -218,9 +223,10 @@ class _GameScreenState extends State<GameScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => Navigator.of(
-                        context,
-                      ).popUntil((route) => route.isFirst),
+                      onPressed: () => Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const MenuScreen()),
+                        (route) => false,
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const ui.Color.fromARGB(
                           255,

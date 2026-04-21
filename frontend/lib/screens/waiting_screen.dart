@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import '../services/websocket_service.dart';
 import 'game_screen.dart';
+import 'menu_screen.dart';
 
 class WaitingScreen extends StatefulWidget {
   final String? initialPlayerId;
@@ -129,7 +130,10 @@ class _WaitingScreenState extends State<WaitingScreen> {
         _showAccentSnackBar(errorMessage);
         _socketSubscription?.cancel();
         socketService.disconnect();
-        Navigator.of(context).popUntil((route) => route.isFirst);
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const MenuScreen()),
+          (route) => false,
+        );
         return;
       }
       if (data['status'] == 'start' && mounted) {
@@ -165,7 +169,10 @@ class _WaitingScreenState extends State<WaitingScreen> {
     if (isTimeout) {
       _showAccentSnackBar('Waiting room timed out after 3:00.');
     }
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MenuScreen()),
+      (route) => false,
+    );
   }
 
   @override

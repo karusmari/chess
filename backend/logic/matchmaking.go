@@ -205,6 +205,14 @@ func JoinPrivate(p *models.Player, roomID string) {
 		return
 	}
 
+	// If the host disconnected after creating the room, remove the stale room entry.
+	if !isConnectionAlive(host) {
+		delete(PrivateRooms, roomID)
+		Mu.Unlock()
+		p.Conn.WriteJSON(models.GameMessage{Status: "error", Message: "Room expired or host disconnected."})
+		return
+	}
+
 	// Room found: remove it from waiting rooms and create an active game.
 	delete(PrivateRooms, roomID)
 

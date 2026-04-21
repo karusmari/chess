@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:math';
 import '../services/websocket_service.dart';
+import 'game_screen.dart';
 import 'waiting_screen.dart';
 
 class MenuScreen extends StatefulWidget {
@@ -13,11 +15,15 @@ class MenuScreen extends StatefulWidget {
 class _MenuScreenState extends State<MenuScreen> {
   final TextEditingController _codeController = TextEditingController();
   bool _showPrivateCodeForm = false;
+  bool _isJoiningPrivate = false;
+  String? _privateJoinError;
 
   void _resetForm() {
     setState(() {
       _showPrivateCodeForm = false;
       _codeController.clear();
+      _privateJoinError = null;
+      _isJoiningPrivate = false;
     });
   }
 
@@ -25,6 +31,69 @@ class _MenuScreenState extends State<MenuScreen> {
   void dispose() {
     _codeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _joinPrivateGame() async {
+    final roomCode = _codeController.text.trim();
+    if (roomCode.isEmpty) {
+      setState(() {
+        _privateJoinError = 'Please enter a game code.';
+      });
+      return;
+    }
+
+    setState(() {
+      _privateJoinError = null;
+      _isJoiningPrivate = true;
+    });
+
+    // Join private uses the first message on a fresh socket connection.
+    // Reset any previous connection so a retry always creates a new backend handler.
+    await socketService.disconnect();
+
+    final connected = await socketService.connect();
+    if (!connected) {
+      if (!mounted) return;
+      setState(() {
+        _isJoiningPrivate = false;
+        _privateJoinError = 'Could not connect to the websocket server.';
+      });
+      return;
+    }
+
+    StreamSubscription<Map<String, dynamic>>? privateJoinSubscription;
+    privateJoinSubscription = socketService.stream.listen((data) {
+      if (!mounted) {
+        privateJoinSubscription?.cancel();
+        return;
+      }
+
+      if (data['status'] == 'error') {
+        final errorMessage =
+            data['message']?.toString() ?? 'Something went wrong.';
+        privateJoinSubscription?.cancel();
+        socketService.disconnect();
+        setState(() {
+          _isJoiningPrivate = false;
+          _privateJoinError = errorMessage;
+        });
+        return;
+      }
+
+      if (data['status'] == 'start') {
+        privateJoinSubscription?.cancel();
+        socketService.sendReady();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                GameScreen(gameId: data['game_id'], playerColor: data['color']),
+          ),
+        );
+      }
+    });
+
+    socketService.joinPrivate(roomCode);
   }
 
   // if the user picks one of the options, we connect to the websocket server and send the first action message (join public, create private, join private).
@@ -104,10 +173,20 @@ class _MenuScreenState extends State<MenuScreen> {
                     vertical: 16,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(255,24,23,21,).withOpacity(0.42),
+                    color: const Color.fromARGB(
+                      255,
+                      24,
+                      23,
+                      21,
+                    ).withOpacity(0.42),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: const Color.fromARGB(255,225,215,170,).withOpacity(0.28),
+                      color: const Color.fromARGB(
+                        255,
+                        225,
+                        215,
+                        170,
+                      ).withOpacity(0.28),
                       width: 1,
                     ),
                     boxShadow: [
@@ -182,28 +261,26 @@ class _MenuScreenState extends State<MenuScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                if (_codeController.text.isNotEmpty) {
-                                  _handleAction(
-                                    () => socketService.joinPrivate(
-                                      _codeController.text,
-                                    ),
-                                  );
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Please enter a game code.',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
+                              onPressed: _isJoiningPrivate
+                                  ? null
+                                  : _joinPrivateGame,
                               icon: const Icon(Icons.login, size: 18),
-                              label: const Text("Join"),
+                              label: Text(
+                                _isJoiningPrivate ? "Joining..." : "Join",
+                              ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color.fromARGB(255,222,220,210),
-                                foregroundColor: const Color.fromARGB(255,49,47,43),
+                                backgroundColor: const Color.fromARGB(
+                                  255,
+                                  222,
+                                  220,
+                                  210,
+                                ),
+                                foregroundColor: const Color.fromARGB(
+                                  255,
+                                  49,
+                                  47,
+                                  43,
+                                ),
                                 elevation: 0,
                                 minimumSize: const Size(0, 42),
                                 padding: const EdgeInsets.symmetric(
@@ -217,6 +294,18 @@ class _MenuScreenState extends State<MenuScreen> {
                           ),
                         ],
                       ),
+                      if (_privateJoinError != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          _privateJoinError!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color.fromARGB(255, 236, 150, 145),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
