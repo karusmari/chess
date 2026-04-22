@@ -34,14 +34,14 @@ func HandleConnections(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Error reading initial message:", err)
 		return
 	}
-    
+
 	// Expecting the initial message to contain an "action" field that determines what the player wants to do.
 	action := initMsg["action"]
 	roomID := initMsg["room_id"] // could be empty for "join_public"
 	playerID := initMsg["player_id"]
 
 	fmt.Printf("Player %s connected with action: %s, room_id: %s\n", player.ID, action, roomID)
-    
+
 	// Handle the action based on the client's request
 	switch action {
 	case "join_public":

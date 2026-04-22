@@ -34,7 +34,7 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 
   Future<void> _joinPrivateGame() async {
-    final roomCode = _codeController.text.trim();
+    final roomCode = _codeController.text.trim(); // trim whitespace just in case
     if (roomCode.isEmpty) {
       setState(() {
         _privateJoinError = 'Please enter a game code.';
@@ -82,7 +82,6 @@ class _MenuScreenState extends State<MenuScreen> {
 
       if (data['status'] == 'start') {
         privateJoinSubscription?.cancel();
-        socketService.sendReady();
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(

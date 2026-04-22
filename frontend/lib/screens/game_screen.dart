@@ -128,18 +128,8 @@ class _GameScreenState extends State<GameScreen> {
                         (route) => false,
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const ui.Color.fromARGB(
-                          255,
-                          222,
-                          220,
-                          210,
-                        ),
-                        foregroundColor: const ui.Color.fromARGB(
-                          255,
-                          49,
-                          47,
-                          43,
-                        ),
+                        backgroundColor: const ui.Color.fromARGB(255,222,220,210),
+                        foregroundColor: const ui.Color.fromARGB(255,49,47,43),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -228,18 +218,8 @@ class _GameScreenState extends State<GameScreen> {
                         (route) => false,
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const ui.Color.fromARGB(
-                          255,
-                          222,
-                          220,
-                          210,
-                        ),
-                        foregroundColor: const ui.Color.fromARGB(
-                          255,
-                          49,
-                          47,
-                          43,
-                        ),
+                        backgroundColor: const ui.Color.fromARGB(255,222,220,210),
+                        foregroundColor: const ui.Color.fromARGB(255,49,47,43),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -297,12 +277,7 @@ class _GameScreenState extends State<GameScreen> {
                           isActive: isOpponentTurn,
                           activeLabel: turnText,
                           showActiveChip: isOpponentTurn,
-                          activeColor: const ui.Color.fromARGB(
-                            255,
-                            225,
-                            215,
-                            170,
-                          ),
+                          activeColor: const ui.Color.fromARGB(255,225,215,170),
                         ),
                         const SizedBox(height: 14),
 
@@ -344,12 +319,7 @@ class _GameScreenState extends State<GameScreen> {
                             icon: const Icon(Icons.exit_to_app_rounded),
                             label: const Text('Leave Game'),
                             style: OutlinedButton.styleFrom(
-                              foregroundColor: const ui.Color.fromARGB(
-                                255,
-                                222,
-                                220,
-                                210,
-                              ),
+                              foregroundColor: const ui.Color.fromARGB(255,222,220,210),
                               side: const BorderSide(
                                 color: ui.Color.fromARGB(255, 222, 220, 210),
                                 width: 1.2,

@@ -23,6 +23,7 @@ func HandleGame(p1, p2 *models.Player, game *models.Game) {
 func relayMoves(from, to *models.Player, playerColor string, game *models.Game) {
 	defer func() { // Clean up game and notify opponent if a player disconnects.
 		Mu.Lock()
+		clearWaitingAndPrivateLocked(from.ID)
 		_, isActive := ActiveGames[game.ID]
 		if isActive {
 			delete(ActiveGames, game.ID)

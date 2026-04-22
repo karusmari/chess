@@ -57,20 +57,15 @@ class WebSocketService {
   // This method is used to send a move (in FEN format) to the server. 
   // It constructs a message with the type "move" and the FEN string, 
   // and sends it using the _sendData helper method.
-  void sendMove(String fen) {
-    if (_channel != null) {
-      _sendData({"type": "move", "fen": fen});
-    }
-  }
-
-  void sendReady() {
-    _sendData({"type": "ready"});
-  }
+  void sendMove(String fen) => _sendData({"type": "move", "fen": fen});
 
   Future<void> cancelWaitingById(String playerId) async {
     if (playerId.isEmpty) return;
 
-    final url = const String.fromEnvironment('WEBSOCKET_URL', defaultValue: _defaultWebSocketUrl);
+    final url = const String.fromEnvironment(
+      'WEBSOCKET_URL',
+      defaultValue: _defaultWebSocketUrl,
+    );
 
     try {
       final tempChannel = WebSocketChannel.connect(Uri.parse(url));
@@ -87,7 +82,10 @@ class WebSocketService {
   Future<void> cancelPrivateRoomById(String roomId) async {
     if (roomId.isEmpty) return;
 
-    final url = const String.fromEnvironment('WEBSOCKET_URL', defaultValue: _defaultWebSocketUrl);
+    final url = const String.fromEnvironment(
+      'WEBSOCKET_URL',
+      defaultValue: _defaultWebSocketUrl,
+    );
 
     try {
       final tempChannel = WebSocketChannel.connect(Uri.parse(url));
@@ -101,6 +99,15 @@ class WebSocketService {
     }
   }
 
+  // public game
+  void joinPublic() => _sendData({"action": "join_public"});
+  
+  // creating private room (friend code)
+  void createPrivate(String roomId) => _sendData({"action": "create_private", "room_id": roomId});
+
+  // joining the private room (friend code)
+  void joinPrivate(String roomId) => _sendData({"action": "join_private", "room_id": roomId});
+
   Future<void> disconnect() async {
     if (_channel != null) {
       await _channel!.sink.close();
@@ -112,22 +119,6 @@ class WebSocketService {
     _channel?.sink.close();
     _controller.close();
   }
-
-  // public game
-  void joinPublic() {
-    _sendData({"action": "join_public"});
-  }
-
-  // creating private room (friend code)
-  void createPrivate(String roomId) {
-    _sendData({"action": "create_private", "room_id": roomId});
-  }
-
-  // joining the private room (friend code)
-  void joinPrivate(String roomId) {
-    _sendData({"action": "join_private", "room_id": roomId});
-  }
 }
-
 // creating a global instance of the WebSocketService that can be imported and used across the app.
 final socketService = WebSocketService();

@@ -58,6 +58,13 @@ func Matchmaking(p *models.Player) {
 	} else {
 		p2 := WaitingPlayer
 
+		// Safety guard: never pair the exact same player session with itself.
+		if p2 != nil && p2.ID == p.ID {
+			Mu.Unlock()
+			sendWaitingMessage(p)
+			return
+		}
+
 		// Guard against stale waiting sockets (e.g. user disconnected/cancelled earlier).
 		if !isConnectionAlive(p2) {
 			WaitingPlayer = p
@@ -107,33 +114,6 @@ func Matchmaking(p *models.Player) {
 			}
 			return
 		}
-
-		// Wait for both players to confirm they're ready before starting the game loop.
-		if !waitForReady(p2) {
-			Mu.Lock()
-			delete(ActiveGames, gameID)
-			WaitingPlayer = p
-			Mu.Unlock()
-			sendWaitingMessage(p)
-			return
-		}
-
-		if !waitForReady(p) {
-			Mu.Lock()
-			delete(ActiveGames, gameID)
-			if isConnectionAlive(p2) {
-				WaitingPlayer = p2
-			} else {
-				WaitingPlayer = nil
-			}
-			Mu.Unlock()
-
-			if WaitingPlayer == p2 {
-				sendWaitingMessage(p2)
-			}
-			return
-		}
-
 		go HandleGame(p2, p, newGame)
 	}
 }
@@ -158,27 +138,6 @@ func isConnectionAlive(p *models.Player) bool {
 	)
 
 	return err == nil
-}
-
-func waitForReady(p *models.Player) bool {
-	if p == nil || p.Conn == nil {
-		return false
-	}
-
-	_ = p.Conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	defer p.Conn.SetReadDeadline(time.Time{})
-
-	for {
-		var msg map[string]interface{}
-		if err := p.Conn.ReadJSON(&msg); err != nil {
-			return false
-		}
-
-		msgType, _ := msg["type"].(string)
-		if msgType == "ready" {
-			return true
-		}
-	}
 }
 
 // CreatePrivate puts the host into a private room identified by roomID.
