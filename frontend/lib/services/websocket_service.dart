@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/io.dart';
+import 'package:flutter/foundation.dart';
 
 class WebSocketService {
   WebSocketChannel? _channel;
@@ -37,7 +38,7 @@ class WebSocketService {
       // waiting until the connection is fully established before proceeding.
       // This ensures that we don't try to send or receive messages before the WebSocket is ready.
       await _channel!.ready;
-      print("Connected to $url");
+      debugPrint("Connected to $url");
 
       _channel!.stream.listen(
         (message) {
@@ -51,7 +52,7 @@ class WebSocketService {
       );
       return true;
     } catch (e) {
-      print("Connection error: $e");
+      debugPrint("Connection error: $e");
       return false;
     }
   }
@@ -61,7 +62,7 @@ class WebSocketService {
     if (_channel != null) {
       _channel!.sink.add(jsonEncode(data));
     } else {
-      print("WebSocket is not connected. Cannot send data.");
+      debugPrint("WebSocket is not connected. Cannot send data.");
     }
   }
 
@@ -82,7 +83,7 @@ class WebSocketService {
       tempChannel.sink.add(jsonEncode(payload));
       await tempChannel.sink.close();
     } catch (e) {
-      print("Cancel request failed: $e");
+      debugPrint("Cancel request failed: $e");
     }
   }
 
